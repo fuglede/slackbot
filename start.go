@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"golang.org/x/net/websocket"
@@ -41,7 +40,12 @@ func (bot *SlackBot) Start(token string) (err error) {
 	bot.id = msg.Self.ID
 	bot.name = msg.Self.Name
 
+	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
 	bot.ws, err = websocket.Dial(msg.URL, "", "https://api.slack.com/")
+	if err != nil {
+		return
+	}
+	bot.logger.Println("Connected. Listening for events.")
 	go bot.listen()
 	return
 }
@@ -73,7 +77,7 @@ func (bot SlackBot) listen() (err error) {
 		event := json.RawMessage{}
 		err = websocket.JSON.Receive(bot.ws, &event)
 		if err != nil {
-			log.Print("Error receiving JSON from websocket :", err)
+			bot.logger.Print("Error receiving JSON from websocket :", err)
 			break
 		}
 		go bot.handleEvent(event)
@@ -85,6 +89,7 @@ func (bot SlackBot) listen() (err error) {
 // Disconnect closes the WebSocket connection and signals completion
 // on the Done channel.
 func (bot SlackBot) Disconnect() error {
+	bot.logger.Println("Disconnecting.")
 	bot.Done <- true
 	return bot.ws.Close()
 }
@@ -102,6 +107,7 @@ func (bot SlackBot) handleEvent(rawEvent json.RawMessage) {
 	var firstPassEvent typeOnlyEvent
 	json.Unmarshal(rawEvent, &firstPassEvent)
 	// Now we have the type and can unmarshal into that type
+	bot.logger.Println("Received event of type " + firstPassEvent.Type)
 	event, exists := eventTypeByEvent[firstPassEvent.Type]
 	if !exists {
 		return

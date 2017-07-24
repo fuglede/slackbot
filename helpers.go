@@ -7,15 +7,16 @@ import (
 )
 
 // SendMessage sends a given message to a given channel.
-func (bot SlackBot) SendMessage(channel string, message string) {
+func (bot SlackBot) SendMessage(channel string, message string) error {
 	atomic.AddInt32(&bot.messageID, 1)
+	bot.logger.Printf("Sending message %s to channel %s\n", message, channel)
 	messageOut := &messageOut{
 		ID:      bot.messageID,
 		Type:    "message",
 		Channel: channel,
 		Text:    message,
 	}
-	websocket.JSON.Send(bot.ws, messageOut)
+	return websocket.JSON.Send(bot.ws, messageOut)
 }
 
 // messageOut represents an outbound message

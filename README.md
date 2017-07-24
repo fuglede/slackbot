@@ -5,7 +5,7 @@ This library provides a very partial Go implementation of the [Slack RTM API](ht
 
 About a 1000 similar libraries exist, and if you came here searching for a implementation of the full API, you may as well head somewhere else; [this repository](https://github.com/nlopes/slack) looks promising!
 
-Instead, in this rudimentary approach, all we do is connect to the WebSocket server and allow the user of a bot to set up simple read-and-respond scripts through callbacks, which happened to be what I needed when setting this up; the repository is kept here mainly for my personal bookkeeping, and to allow others who happen to come across it to get started.
+Instead, in this rudimentary approach, all we do is connect to the WebSocket server and allow the user of a bot to set up simple read-and-respond scripts through callbacks, which happened to be what I needed when doing this; the repository is kept here mainly for my personal bookkeeping, and to allow others who happen to come across it to get started.
 
 
 Installation

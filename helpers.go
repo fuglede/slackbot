@@ -17,3 +17,12 @@ func (bot SlackBot) SendMessage(channel string, message string) {
 	}
 	websocket.JSON.Send(bot.ws, messageOut)
 }
+
+// messageOut represents an outbound message
+// Slack API doc: https://api.slack.com/rtm
+type messageOut struct {
+	ID      int32  `json:"id"`
+	Type    string `json:"type"`
+	Channel string `json:"channel"`
+	Text    string `json:"text"`
+}

@@ -12,15 +12,15 @@ import (
 // SlackBot represents a single connection of a Slack bot user
 // to the Slack Real Time Messaging (RTM) API. The bot should be
 // initialized through a call to New after which a connection can
-// be started through a call to Start.
+// be started through a call to Start.€
 type SlackBot struct {
 	CallbackErrors chan error // Signals errors seen on user-defined callbacks
 	Done           chan bool  // Signals that the bot has disconnected
 
 	// Event callbacks. These should be defined by the client and will
 	// be called when the bot encounters the relevant events.
-	OnHello   func() error                  // The client has successfully connected to the server
-	OnMessage func(message MessageIn) error // A message was sent to a channel
+	OnHello   func(event Hello) error     // The client has successfully connected to the server
+	OnMessage func(event MessageIn) error // A message was sent to a channel
 
 	id        string // The Slack ID of the bot itself
 	name      string // The name identifying the bot on Slack

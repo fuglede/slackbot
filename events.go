@@ -1,6 +1,28 @@
 package slackbot
 
-// MessageIn represents a general incoming message.
+type event interface {
+	invoke(bot SlackBot) error // invoke the callback associated to a given event on the bot
+}
+
+var eventTypeByEvent = map[string]event{
+	"hello":   &Hello{},
+	"message": &MessageIn{},
+}
+
+// Hello represents the event sent when a connection is opened to the message server.
+// Slack API doc: https://api.slack.com/events/hello
+type Hello struct {
+	Type string `json:"type"`
+}
+
+func (event Hello) invoke(bot SlackBot) (err error) {
+	if bot.OnHello != nil {
+		err = bot.OnHello(event)
+	}
+	return
+}
+
+// MessageIn represents the event sent when a general message was sent to a channel.
 // Slack API doc: https://api.slack.com/events/message
 type MessageIn struct {
 	Type    string `json:"type"`
@@ -10,11 +32,9 @@ type MessageIn struct {
 	Ts      string `json:"ts"`
 }
 
-// messageOut represents an outbound message
-// Slack API doc: https://api.slack.com/rtm
-type messageOut struct {
-	ID      int32  `json:"id"`
-	Type    string `json:"type"`
-	Channel string `json:"channel"`
-	Text    string `json:"text"`
+func (event MessageIn) invoke(bot SlackBot) (err error) {
+	if bot.OnMessage != nil {
+		err = bot.OnMessage(event)
+	}
+	return
 }

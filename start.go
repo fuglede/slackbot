@@ -89,33 +89,26 @@ func (bot SlackBot) Disconnect() error {
 	return bot.ws.Close()
 }
 
-// event represents a generic message received from the Slack RTM API. It
+// rawEvent represents a generic message received from the Slack RTM API. It
 // is documented at https://api.slack.com/rtm
-type event struct {
+type typeOnlyEvent struct {
 	Type string `json:"type"`
 }
 
 // handleEvent parses a general Slack event into its specific type
 // and calls the relevant callbacks.
 func (bot SlackBot) handleEvent(rawEvent json.RawMessage) {
-	var event event
+	// We unmarshal in two steps. First, we get the type of the event.
+	var firstPassEvent typeOnlyEvent
+	json.Unmarshal(rawEvent, &firstPassEvent)
+	// Now we have the type and can unmarshal into that type
+	event, exists := eventTypeByEvent[firstPassEvent.Type]
+	if !exists {
+		return
+	}
 	json.Unmarshal(rawEvent, &event)
-	switch event.Type {
-	case "hello":
-		if bot.OnHello != nil {
-			err := bot.OnHello()
-			if err != nil {
-				bot.CallbackErrors <- err
-			}
-		}
-	case "message":
-		var message MessageIn
-		json.Unmarshal(rawEvent, &message)
-		if bot.OnMessage != nil {
-			err := bot.OnMessage(message)
-			if err != nil {
-				bot.CallbackErrors <- err
-			}
-		}
+	err := event.invoke(bot)
+	if err != nil {
+		bot.CallbackErrors <- err
 	}
 }

@@ -15,43 +15,45 @@ First of all, to get started you'll need an API token for your bot user; you can
 
 With that out of the way, an example script says more than a thousand words:
 
-    package main
+```go
+package main
 
-    import (
-        "errors"
-        "fmt"
-        "log"
-        "os"
+import (
+    "errors"
+    "fmt"
+    "log"
+    "os"
 
-        "github.com/fuglede/slackbot"
-    )
+    "github.com/fuglede/slackbot"
+)
 
-    func main() {
-        token := "xoxb-your-api-token-goes-here"
+func main() {
+    token := "xoxb-your-api-token-goes-here"
 
-        // Create a new bot and let it log to stdout
-        bot := slackbot.New(log.New(os.Stdout, "", 3))
+    // Create a new bot and let it log to stdout
+    bot := slackbot.New(log.New(os.Stdout, "", 3))
 
-        // Set up the bot to respond to the message "Hi". The callback
-        // returns an error which we will catch later.
-        bot.OnMessage = func(message slackbot.MessageIn) error {
-            if message.Text == "Hi" {
-                bot.SendMessage(message.Channel, "Hi!")
-            }
-            return errors.New("Error only for illustration")
+    // Set up the bot to respond to the message "Hi". The callback
+    // returns an error which we will catch later.
+    bot.OnMessage = func(message slackbot.MessageIn) error {
+        if message.Text == "Hi" {
+            bot.SendMessage(message.Channel, "Hi!")
         }
+        return errors.New("Error only for illustration")
+    }
 
-        // Connect and start listening for messages
-        bot.Start(token)
+    // Connect and start listening for messages
+    bot.Start(token)
 
-        for {
-            select {
-            // Exit the application when the bot signals disconnection
-            case <-bot.Done:
-                return
-            // Use the CallbackErrors channel to catch the "error" from above
-            case err := <-bot.CallbackErrors:
-                fmt.Println(err)
-            }
+    for {
+        select {
+        // Exit the application when the bot signals disconnection
+        case <-bot.Done:
+            return
+        // Use the CallbackErrors channel to catch the "error" from above
+        case err := <-bot.CallbackErrors:
+            fmt.Println(err)
         }
     }
+}
+```

@@ -12,7 +12,7 @@ import (
 // SlackBot represents a single connection of a Slack bot user
 // to the Slack Real Time Messaging (RTM) API. The bot should be
 // initialized through a call to New after which a connection can
-// be started through a call to Start.€
+// be started through a call to Start.
 type SlackBot struct {
 	CallbackErrors chan error // Signals errors seen on user-defined callbacks
 	Done           chan bool  // Signals that the bot has disconnected

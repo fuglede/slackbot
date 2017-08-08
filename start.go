@@ -106,8 +106,8 @@ func (bot SlackBot) handleEvent(rawEvent json.RawMessage) {
 	// We unmarshal in two steps. First, we get the type of the event.
 	var firstPassEvent typeOnlyEvent
 	json.Unmarshal(rawEvent, &firstPassEvent)
+	bot.logger.Println("Received event: " + string(rawEvent))
 	// Now we have the type and can unmarshal into that type
-	bot.logger.Println("Received event of type " + firstPassEvent.Type)
 	event, exists := eventTypeByEvent[firstPassEvent.Type]
 	if !exists {
 		return

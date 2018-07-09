@@ -79,7 +79,7 @@ func (bot SlackBot) dial(url string) (*websocket.Conn, error) {
 	host := hostRegExp.FindStringSubmatch(url)[1]
 	addrs, err := net.LookupHost(host)
 	if err != nil {
-		return nil, fmt.Errorf("Could not resolve address of %s: %v", host, err)
+		return nil, fmt.Errorf("could not resolve address of %s: %v", host, err)
 	}
 	ip := addrs[0]
 	newURL := strings.Replace(url, host, ip, 1)

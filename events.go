@@ -8,7 +8,7 @@ var eventTypeByEvent = map[string]event{
 	"dnd_updated_user": &DndUpdatedUser{},
 	"hello":            &Hello{},
 	"message":          &MessageIn{},
-	"pong":             &pingMessage{},
+	"pong":             &pongMessage{},
 	"presence_change":  &PresenceChange{},
 }
 
@@ -44,8 +44,13 @@ func (event Hello) invoke(bot *SlackBot) (err error) {
 	return
 }
 
-func (event pingMessage) invoke(bot *SlackBot) (err error) {
-	bot.lastPong = event.LastPing
+type pongMessage struct {
+	ReplyTo int32  `json:"reply_to"`
+	Type    string `json:"type"`
+}
+
+func (event pongMessage) invoke(bot *SlackBot) (err error) {
+	bot.lastPong = event.ReplyTo
 	return nil
 }
 

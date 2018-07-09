@@ -62,7 +62,6 @@ func (bot *SlackBot) Start(token string) (err error) {
 	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
 	config, err := websocket.NewConfig(newURL, "https://api.slack.com/")
 	bot.ws, err = websocket.DialConfig(config)
-
 	if err != nil {
 		return
 	}
@@ -156,8 +155,7 @@ func (bot *SlackBot) sendPings() (err error) {
 			return bot.Disconnect()
 		}
 		bot.lastPing++
-		// The JSON ID appears to be ignored entirely by the API so we leave that out
-		pingMessage := pingMessage{ID: 0, Type: "ping", LastPing: bot.lastPing}
+		pingMessage := pingMessage{ID: bot.lastPing, Type: "ping"}
 		websocket.JSON.Send(bot.ws, pingMessage)
 		time.Sleep(time.Minute)
 	}
@@ -166,7 +164,6 @@ func (bot *SlackBot) sendPings() (err error) {
 // pingMessage represents the message used for pinging/ponging. It is documented
 // at https://api.slack.com/rtm
 type pingMessage struct {
-	ID       int32  `json:"id"`
-	Type     string `json:"type"`
-	LastPing int32  `json:"lastPing"`
+	ID   int32  `json:"id"`
+	Type string `json:"type"`
 }

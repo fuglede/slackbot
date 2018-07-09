@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -42,8 +45,23 @@ func (bot *SlackBot) Start(token string) (err error) {
 	bot.id = msg.Self.ID
 	bot.name = msg.Self.Name
 
+	// Rather than connecting directly to the host provided by Slack, we resolve
+	// its IP and connect to that instead. Effectively, this strips SNI information
+	// from the TLS frames, which allows the bot to work in environments in which
+	// firewalls employ packet inspection to block frames based on SNI. This only
+	// works because the server at the other end does not actually make use of SNI,
+	// so that removing it becomes safe.
+	hostRegExp := regexp.MustCompile("//([^/]+)/")
+	host := hostRegExp.FindStringSubmatch(msg.URL)[1]
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return fmt.Errorf("Could not resolve address of %s: %v", host, err)
+	}
+	ip := addrs[0]
+	newURL := strings.Replace(msg.URL, host, ip, 1)
 	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
-	bot.ws, err = websocket.Dial(msg.URL, "", "https://api.slack.com/")
+	config, err := websocket.NewConfig(newURL, "https://api.slack.com/")
+	bot.ws, err = websocket.DialConfig(config)
 
 	if err != nil {
 		return

@@ -19,8 +19,10 @@ type SlackBot struct {
 
 	// Event callbacks. These should be defined by the client and will
 	// be called when the bot encounters the relevant events.
-	OnHello   func(event Hello) error     // The client has successfully connected to the server
-	OnMessage func(event MessageIn) error // A message was sent to a channel
+	OnDndUpdatedUser func(event DndUpdatedUser) error // Do not disturb settings changed for a team member
+	OnHello          func(event Hello) error          // The client has successfully connected to the server
+	OnMessage        func(event MessageIn) error      // A message was sent to a channel
+	OnPresenceChange func(event PresenceChange) error // A team member's presence changed
 
 	id           string // The Slack ID of the bot itself
 	name         string // The name identifying the bot on Slack

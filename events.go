@@ -5,9 +5,30 @@ type event interface {
 }
 
 var eventTypeByEvent = map[string]event{
-	"hello":   &Hello{},
-	"message": &MessageIn{},
-	"pong":    &pingMessage{},
+	"dnd_updated_user": &DndUpdatedUser{},
+	"hello":            &Hello{},
+	"message":          &MessageIn{},
+	"pong":             &pingMessage{},
+	"presence_change":  &PresenceChange{},
+}
+
+// DndUpdatedUser represents the event sent when o not Disturb settings change for a team member
+// Slack API doc: https://api.slack.com/events/dnd_updated_user
+type DndUpdatedUser struct {
+	Type      string `json:"type"`
+	User      string `json:"user"`
+	DndStatus struct {
+		DndEnabled     bool `json:"dnd_enabled"`
+		NextDndStartTs int  `json:"next_dnd_start_ts"`
+		NextDndEndTs   int  `json:"next_dnd_end_ts"`
+	} `json:"dnd_status"`
+}
+
+func (event DndUpdatedUser) invoke(bot *SlackBot) (err error) {
+	if bot.OnDndUpdatedUser != nil {
+		err = bot.OnDndUpdatedUser(event)
+	}
+	return
 }
 
 // Hello represents the event sent when a connection is opened to the message server.
@@ -41,6 +62,21 @@ type MessageIn struct {
 func (event MessageIn) invoke(bot *SlackBot) (err error) {
 	if bot.OnMessage != nil {
 		err = bot.OnMessage(event)
+	}
+	return
+}
+
+// PresenceChange represents the event sent when a team member's presence has changed.
+// Slack API doc: https://api.slack.com/events/presence_change
+type PresenceChange struct {
+	Type     string `json:"type"`
+	User     string `json:"user"`
+	Presence string `json:"presence"`
+}
+
+func (event PresenceChange) invoke(bot *SlackBot) (err error) {
+	if bot.OnPresenceChange != nil {
+		err = bot.OnPresenceChange(event)
 	}
 	return
 }

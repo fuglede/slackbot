@@ -104,7 +104,7 @@ func (bot SlackBot) Disconnect() error {
 	return errors.New("Bot is already disconnected.")
 }
 
-// rawEvent represents a generic message received from the Slack RTM API. It
+// typeOnlyEvent represents a generic message received from the Slack RTM API. It
 // is documented at https://api.slack.com/rtm
 type typeOnlyEvent struct {
 	Type string `json:"type"`

@@ -2,9 +2,11 @@ package slackbot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"golang.org/x/net/websocket"
 )
@@ -42,11 +44,15 @@ func (bot *SlackBot) Start(token string) (err error) {
 
 	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
 	bot.ws, err = websocket.Dial(msg.URL, "", "https://api.slack.com/")
+
 	if err != nil {
 		return
 	}
 	bot.logger.Println("Connected. Listening for events.")
 	go bot.listen()
+	// The standard Go WebSocket library does not support WebSocket pings,
+	// but Slack provides a custom heartbeat mechanism that we use here instead
+	go bot.sendPings()
 	return
 }
 
@@ -72,7 +78,7 @@ type connectMessage struct {
 // listen will continuously parse messages from the bot's RTM connection
 // and spawn handlers for each of them. It disconnects the bot if any
 // errors occur.
-func (bot SlackBot) listen() (err error) {
+func (bot *SlackBot) listen() (err error) {
 	for {
 		event := json.RawMessage{}
 		err = websocket.JSON.Receive(bot.ws, &event)
@@ -89,9 +95,13 @@ func (bot SlackBot) listen() (err error) {
 // Disconnect closes the WebSocket connection and signals completion
 // on the Done channel.
 func (bot SlackBot) Disconnect() error {
-	bot.logger.Println("Disconnecting.")
-	bot.Done <- true
-	return bot.ws.Close()
+	if !bot.disconnected {
+		bot.logger.Println("Disconnecting.")
+		bot.Done <- true
+		bot.disconnected = true
+		return bot.ws.Close()
+	}
+	return errors.New("Bot is already disconnected.")
 }
 
 // rawEvent represents a generic message received from the Slack RTM API. It
@@ -102,7 +112,7 @@ type typeOnlyEvent struct {
 
 // handleEvent parses a general Slack event into its specific type
 // and calls the relevant callbacks.
-func (bot SlackBot) handleEvent(rawEvent json.RawMessage) {
+func (bot *SlackBot) handleEvent(rawEvent json.RawMessage) {
 	// We unmarshal in two steps. First, we get the type of the event.
 	var firstPassEvent typeOnlyEvent
 	json.Unmarshal(rawEvent, &firstPassEvent)
@@ -117,4 +127,28 @@ func (bot SlackBot) handleEvent(rawEvent json.RawMessage) {
 	if err != nil {
 		bot.CallbackErrors <- err
 	}
+}
+
+// sendPings sends a ping every minute, ensures that pongs are returned,
+// and disconnects when they are not.
+func (bot *SlackBot) sendPings() (err error) {
+	for {
+		// If more than three minutes passed since the last pong, disconnect.
+		if bot.lastPing-bot.lastPong > 2 {
+			return bot.Disconnect()
+		}
+		bot.lastPing++
+		// The JSON ID appears to be ignored entirely by the API so we leave that out
+		pingMessage := pingMessage{ID: 0, Type: "ping", LastPing: bot.lastPing}
+		websocket.JSON.Send(bot.ws, pingMessage)
+		time.Sleep(time.Minute)
+	}
+}
+
+// pingMessage represents the message used for pinging/ponging. It is documented
+// at https://api.slack.com/rtm
+type pingMessage struct {
+	ID       int32  `json:"id"`
+	Type     string `json:"type"`
+	LastPing int32  `json:"lastPing"`
 }

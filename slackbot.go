@@ -22,9 +22,12 @@ type SlackBot struct {
 	OnHello   func(event Hello) error     // The client has successfully connected to the server
 	OnMessage func(event MessageIn) error // A message was sent to a channel
 
-	id        string // The Slack ID of the bot itself
-	name      string // The name identifying the bot on Slack
-	messageID int32  // Counter to ensure that messages are sent with unique IDs
+	id           string // The Slack ID of the bot itself
+	name         string // The name identifying the bot on Slack
+	messageID    int32  // Counter to ensure that messages are sent with unique IDs
+	lastPing     int32  // Counter to ensure that pings are sent with unique IDs
+	lastPong     int32  // ID of the last pong message received
+	disconnected bool   // Is true if the WebSocket connection has been closed
 
 	logger *log.Logger     // Logger used for status reports
 	ws     *websocket.Conn // The WebSocket connection on which all communication happens
@@ -37,5 +40,6 @@ func New(logger *log.Logger) *SlackBot {
 		Done:           make(chan bool),
 		logger:         logger,
 		messageID:      0,
+		disconnected:   false,
 	}
 }

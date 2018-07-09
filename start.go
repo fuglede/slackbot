@@ -19,6 +19,28 @@ import (
 // Start opens a WebSocket connection to Slack and starts listening
 // for messages.
 func (bot *SlackBot) Start(token string) (err error) {
+	msg, err := bot.getConnectionInformation(token)
+	if err != nil {
+		return
+	}
+	bot.id = msg.Self.ID
+	bot.name = msg.Self.Name
+	bot.ws, err = bot.dial(msg.URL)
+	if err != nil {
+		return
+	}
+	bot.logger.Println("Connected. Listening for events.")
+	go bot.listen()
+	// The standard Go WebSocket library does not support WebSocket pings,
+	// but Slack provides a custom heartbeat mechanism that we use here instead
+	go bot.sendPings()
+	return
+}
+
+// getConnectionInformation performs the initial call to the Slack HTTP API,
+// which gets us the bot's ID and name, as well as a URL for opening a
+// WebSocket connection.
+func (bot SlackBot) getConnectionInformation(token string) (msg connectMessage, err error) {
 	url := "https://slack.com/api/rtm.connect?token=" + token
 	bot.logger.Println("Getting websocket URL from Slack web API")
 	resp, err := http.Get(url)
@@ -34,34 +56,34 @@ func (bot *SlackBot) Start(token string) (err error) {
 	if err != nil {
 		return
 	}
-	var msg connectMessage
-	err = json.Unmarshal(body, &msg)
-	if err != nil {
+	if err = json.Unmarshal(body, &msg); err != nil {
 		return
 	}
 
 	if !msg.Ok {
 		err = fmt.Errorf("Slack error: %s", msg.Error)
-		return
 	}
-	bot.id = msg.Self.ID
-	bot.name = msg.Self.Name
+	return
+}
 
+// dial opens a WebSocket connection at a given URL, stripping all SNI information
+// in the process.
+func (bot SlackBot) dial(url string) (*websocket.Conn, error) {
 	// Rather than connecting directly to the host provided by Slack, we resolve
 	// its IP and connect to that instead. Effectively, this strips SNI information
-	// from the TLS frames, which allows the bot to work in environments in which
+	// from the TLS packets, which allows the bot to work in environments in which
 	// firewalls employ packet inspection to block frames based on SNI. This only
 	// works because the server at the other end does not actually make use of SNI,
 	// so that removing it becomes safe.
 	hostRegExp := regexp.MustCompile("//([^/]+)/")
-	host := hostRegExp.FindStringSubmatch(msg.URL)[1]
+	host := hostRegExp.FindStringSubmatch(url)[1]
 	addrs, err := net.LookupHost(host)
 	if err != nil {
-		return fmt.Errorf("Could not resolve address of %s: %v", host, err)
+		return nil, fmt.Errorf("Could not resolve address of %s: %v", host, err)
 	}
 	ip := addrs[0]
-	newURL := strings.Replace(msg.URL, host, ip, 1)
-	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
+	newURL := strings.Replace(url, host, ip, 1)
+	bot.logger.Println("Connecting to WebSocket at " + url)
 	config, err := websocket.NewConfig(newURL, "https://api.slack.com/")
 	// As we have removed the hostname, the Go TLS package will not know what to
 	// validate the certificate DNS names against, so we have to provide a custom
@@ -72,35 +94,22 @@ func (bot *SlackBot) Start(token string) (err error) {
 		InsecureSkipVerify:    true,
 		VerifyPeerCertificate: verifier(host),
 	}
-	bot.ws, err = websocket.DialConfig(config)
-	if err != nil {
-		return
-	}
-	bot.logger.Println("Connected. Listening for events.")
-	go bot.listen()
-	// The standard Go WebSocket library does not support WebSocket pings,
-	// but Slack provides a custom heartbeat mechanism that we use here instead
-	go bot.sendPings()
-	return
+	return websocket.DialConfig(config)
 }
 
 // verifier produces a certificate validating callback in which it is required that the first
 // certificate has as its DNSName a given host.
 func verifier(host string) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		opts := x509.VerifyOptions{
-			DNSName: host,
-		}
+		opts := x509.VerifyOptions{DNSName: host}
 		rawCert := rawCerts[0]
 		cert, err := x509.ParseCertificate(rawCert)
 
 		if err != nil {
 			return err
 		}
-		if _, err = cert.Verify(opts); err != nil {
-			return err
-		}
-		return nil
+		_, err = cert.Verify(opts)
+		return err
 	}
 }
 
@@ -149,7 +158,7 @@ func (bot SlackBot) Disconnect() error {
 		bot.disconnected = true
 		return bot.ws.Close()
 	}
-	return errors.New("Bot is already disconnected.")
+	return errors.New("bot is already disconnected")
 }
 
 // typeOnlyEvent represents a generic message received from the Slack RTM API. It

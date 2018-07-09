@@ -1,6 +1,8 @@
 package slackbot
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,6 +63,15 @@ func (bot *SlackBot) Start(token string) (err error) {
 	newURL := strings.Replace(msg.URL, host, ip, 1)
 	bot.logger.Println("Connecting to WebSocket at " + msg.URL)
 	config, err := websocket.NewConfig(newURL, "https://api.slack.com/")
+	// As we have removed the hostname, the Go TLS package will not know what to
+	// validate the certificate DNS names against, so we have to provide a custom
+	// verifier based on the hostname we threw away. In the particular case of
+	// Slack, this happens to be rather straightforward as no intermediate certificates
+	// are provided; that is, the leaf is signed directly by the CA.
+	config.TlsConfig = &tls.Config{
+		InsecureSkipVerify:    true,
+		VerifyPeerCertificate: verifier(host),
+	}
 	bot.ws, err = websocket.DialConfig(config)
 	if err != nil {
 		return
@@ -71,6 +82,26 @@ func (bot *SlackBot) Start(token string) (err error) {
 	// but Slack provides a custom heartbeat mechanism that we use here instead
 	go bot.sendPings()
 	return
+}
+
+// verifier produces a certificate validating callback in which it is required that the first
+// certificate has as its DNSName a given host.
+func verifier(host string) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		opts := x509.VerifyOptions{
+			DNSName: host,
+		}
+		rawCert := rawCerts[0]
+		cert, err := x509.ParseCertificate(rawCert)
+
+		if err != nil {
+			return err
+		}
+		if _, err = cert.Verify(opts); err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 // connectMessage represents a response sent by the Slack Web API method

@@ -58,6 +58,7 @@ func (event pongMessage) invoke(bot *SlackBot) (err error) {
 // Slack API doc: https://api.slack.com/events/message
 type MessageIn struct {
 	Type    string `json:"type"`
+	Hidden  bool   `json:"hidden"`
 	Channel string `json:"channel"`
 	User    string `json:"user"`
 	Text    string `json:"text"`
@@ -65,7 +66,9 @@ type MessageIn struct {
 }
 
 func (event MessageIn) invoke(bot *SlackBot) (err error) {
-	if bot.OnMessage != nil {
+	// The Slack API defines some messages as "Hidden". This includes edits and deletes,
+	// which we will want to ignore here.
+	if bot.OnMessage != nil && !event.Hidden {
 		err = bot.OnMessage(event)
 	}
 	return

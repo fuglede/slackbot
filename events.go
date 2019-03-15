@@ -4,12 +4,16 @@ type event interface {
 	invoke(bot *SlackBot) error // invoke the callback associated to a given event on the bot
 }
 
-var eventTypeByEvent = map[string]event{
-	"dnd_updated_user": &DndUpdatedUser{},
-	"hello":            &Hello{},
-	"message":          &MessageIn{},
-	"pong":             &pongMessage{},
-	"presence_change":  &PresenceChange{},
+func makeEventByType(eventType string) (event, bool) {
+	var eventTypeByEvent = map[string]event{
+		"dnd_updated_user": &DndUpdatedUser{},
+		"hello":            &Hello{},
+		"message":          &MessageIn{},
+		"pong":             &pongMessage{},
+		"presence_change":  &PresenceChange{},
+	}
+	event, exists := eventTypeByEvent[eventType]
+	return event, exists
 }
 
 // DndUpdatedUser represents the event sent when o not Disturb settings change for a team member
